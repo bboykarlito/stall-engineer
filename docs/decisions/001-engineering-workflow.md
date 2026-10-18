@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Behaviour contracts are implemented; execution and publication policies below remain to be implemented and validated.
+Proposed. Behaviour contracts and Pi invocation configuration are implemented; execution and publication policies below remain to be implemented and validated.
 
 ## Context
 
@@ -38,7 +38,7 @@ No automatic application retries. Budget accounting starts fresh for each stage,
 
 ## Open questions
 
-- Which provider/model should each stage use?
+- Which Pi provider ID should be selected explicitly? Both stages initially default to `gpt-5.6-terra` (user-selected); availability remains unverified. Provider/model overrides are supported by configuration.
 - Which repository and test commands will be the first target?
 - What isolation will enforce the implementation/publication boundary?
 - Which Git remote and feature-branch naming policy should the CLI use?

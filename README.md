@@ -6,7 +6,7 @@ Intended workflow: accept a task → implement → independently review → comm
 
 ## Status
 
-First increment only: implementation and review behaviours with validation tests. There is no executable, Pi adapter, runner execution, or Git publication yet. Nothing currently invokes a model, modifies a target repository, or pushes changes.
+Implemented: implementation and review behaviours, Pi invocation configuration, and validation tests. There is no executable, Pi process adapter, runner execution, or Git publication yet. Nothing currently invokes a model, modifies a target repository, or pushes changes.
 
 The review gate requires a structured, explicit approval with a nonempty summary and no blocking findings. This validates the report, not the truth of its claims. Implementation validation currently checks only that a summary exists.
 
@@ -26,6 +26,30 @@ The local `go.mod` replacement uses `../libstall` while the library is under dev
 go test ./...
 go vet ./...
 ```
+
+## Pi harness configuration
+
+`internal/harness/pi` supplies configuration for the future subprocess adapter:
+
+```go
+implementation := pi.ImplementationConfig(absoluteRepoPath)
+review := pi.ReviewConfig(absoluteRepoPath)
+
+// Optional overrides; otherwise Pi resolves the model using its configured providers.
+implementation.Provider = "your-provider-id"
+implementation.Model = "gpt-5.6-terra"
+
+args, err := implementation.Args()
+// Handle err. The future adapter will run pi with args and set Cmd.Dir to WorkDir.
+```
+
+Both configurations default to `gpt-5.6-terra`. Model availability and credentials have not been verified with a live call. Provider is intentionally not guessed.
+
+The generated arguments select RPC mode, disable session persistence and project-resource trust, disable discovery of extensions/skills/templates/context files, and explicitly allowlist tools. Implementation permits `read,grep,find,ls,edit,write,bash`; review permits only `read,grep,find,ls`. Each constructor returns an independent tool slice. Configuration remains mutable, so callers changing the review allowlist are responsible for preserving its read-only policy.
+
+`Args` requires an absolute existing working directory, a nonempty model, and a nonempty list of supported built-in tools. It does not verify that the directory is a Git repository. WorkDir is process configuration, not a CLI argument or filesystem sandbox. Shell access in the implementation profile can bypass prompt-only publication restrictions.
+
+These flags do not reset all global Pi settings, enforce budgets, or configure automatic retries/compaction. Those policies remain work for the process adapter. Repository instructions must be passed deliberately because automatic context-file discovery is disabled.
 
 ## Next increments
 
