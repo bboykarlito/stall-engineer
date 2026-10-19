@@ -45,8 +45,8 @@ func ReviewConfig(workDir string) Config {
 }
 
 // Args validates configuration and returns arguments for a fresh RPC session.
-// The future process adapter must separately set exec.Cmd.Dir to WorkDir and
-// send the prepared request over stdin. Arguments must not be joined into a shell command.
+// The process adapter separately sets exec.Cmd.Dir to WorkDir and
+// sends the prepared request over stdin. Arguments must not be joined into a shell command.
 // No resume flags or arbitrary additional arguments are accepted here.
 func (c Config) Args() ([]string, error) {
 	if !filepath.IsAbs(c.WorkDir) {

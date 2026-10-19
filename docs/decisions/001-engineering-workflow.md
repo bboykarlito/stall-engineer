@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Behaviour contracts and Pi invocation configuration are implemented; execution and publication policies below remain to be implemented and validated.
+Partially implemented. Behaviour contracts, Pi invocation configuration, and RPC execution are implemented and tested with fake subprocesses. Runner orchestration, budget policy, publication, and live Pi compatibility remain unimplemented or unverified.
 
 ## Context
 
@@ -29,6 +29,12 @@ The implementation prompt asks the model not to commit or push. If implementatio
 ## Cost and failure semantics
 
 No automatic application retries. Budget accounting starts fresh for each stage, but no hard cap is promised until the adapter can actually enforce one. Pi's own retries and compaction also need an explicit policy, and their usage must not disappear from totals. Preserve available output and usage on failure and stop the workflow when preparation, execution, checks, or review fails.
+
+## Prototype limitations
+
+The adapter currently disables Pi retry and compaction and gathers token totals after settlement. It does not enforce a spend cap. Usage availability and monetary cost remain unresolved in libstall: failures before statistics retrieval return zero counts that must be treated as unknown, not zero spend. This is an explicit deviation from the original plan to resolve those types before implementing the adapter; budget-dependent admission and publication must not rely on this prototype's accounting.
+
+Cancellation closes pipes and terminates/reaps the Pi process, without promising termination of all shell descendants. A context deadline is required operationally to bound unresponsive RPC peers. Unexpected interactive UI requests fail rather than waiting indefinitely for input.
 
 ## Alternatives
 

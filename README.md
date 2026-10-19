@@ -6,7 +6,7 @@ Intended workflow: accept a task → implement → independently review → comm
 
 ## Status
 
-Implemented: implementation and review behaviours, Pi invocation configuration, and validation tests. There is no executable, Pi process adapter, runner execution, or Git publication yet. Nothing currently invokes a model, modifies a target repository, or pushes changes.
+Implemented: implementation and review behaviours, Pi RPC subprocess execution, invocation configuration, and tests using fake subprocesses. There is no CLI executable, runner execution, or Git publication yet. Calling the adapter can invoke a real model and tools; development tests do neither. Live Pi/model compatibility has not been verified.
 
 The review gate requires a structured, explicit approval with a nonempty summary and no blocking findings. This validates the report, not the truth of its claims. Implementation validation currently checks only that a summary exists.
 
@@ -29,7 +29,7 @@ go vet ./...
 
 ## Pi harness configuration
 
-`internal/harness/pi` supplies configuration for the future subprocess adapter:
+`internal/harness/pi` supplies configuration and a `stall.Harness` implementation:
 
 ```go
 implementation := pi.ImplementationConfig(absoluteRepoPath)
@@ -39,8 +39,9 @@ review := pi.ReviewConfig(absoluteRepoPath)
 implementation.Provider = "your-provider-id"
 implementation.Model = "gpt-5.6-terra"
 
-args, err := implementation.Args()
-// Handle err. The future adapter will run pi with args and set Cmd.Dir to WorkDir.
+harness, err := pi.New(implementation)
+// Handle err. New validates and snapshots configuration, without starting Pi.
+// result, err := harness.Execute(ctx, preparedRequest)
 ```
 
 Both configurations default to `gpt-5.6-terra`. Model availability and credentials have not been verified with a live call. Provider is intentionally not guessed.
@@ -49,12 +50,24 @@ The generated arguments select RPC mode, disable session persistence and project
 
 `Args` requires an absolute existing working directory, a nonempty model, and a nonempty list of supported built-in tools. It does not verify that the directory is a Git repository. WorkDir is process configuration, not a CLI argument or filesystem sandbox. Shell access in the implementation profile can bypass prompt-only publication restrictions.
 
-These flags do not reset all global Pi settings, enforce budgets, or configure automatic retries/compaction. Those policies remain work for the process adapter. Repository instructions must be passed deliberately because automatic context-file discovery is disabled.
+These flags do not reset all global Pi settings or enforce budgets. Repository instructions must be passed deliberately because automatic context-file discovery is disabled.
+
+## Pi execution
+
+`pi.New(config)` snapshots configuration. Each `Execute` starts a fresh `pi --mode rpc` process in `WorkDir`, disables automatic retry and compaction through acknowledged RPC commands, and sends the instructions and task as an explicit user message. It waits for `agent_settled` (not merely `agent_end` or prompt acceptance), checks assistant completion, requests session token statistics, and terminates/reaps the RPC process.
+
+Use a context with a deadline. Cancellation closes pipes and kills/reaps Pi, but does not guarantee termination of every shell-tool descendant. There is no OS sandbox or hard spend cap. Model authentication uses the existing Pi setup and environment.
+
+The adapter returns the last completed assistant message's text. Provider errors, aborted/truncated responses, missing completion, malformed protocol data, missing statistics, and unexpected UI requests fail explicitly. Output already received remains available on errors. Diagnostic errors include up to 8 KiB of stderr; treat logs accordingly. JSONL records are limited to 16 MiB.
+
+Token accounting uses session totals: input includes uncached input plus cache-read and cache-write tokens; output is reported separately. Monetary cost is not represented. If execution fails before statistics are retrieved, usage remains zero and must be treated as **unknown, not free**. The current libstall type cannot express availability; this prototype is not suitable for budget enforcement. A successful statistics response also cannot prove that a provider supplied accurate billing data.
+
+Tests exercise RPC acceptance versus completion, Unicode line separators, usage, provider failures, malformed output, premature exit, UI rejection, configuration snapshots, and cancellation through fake child processes. No paid API calls are made.
 
 ## Next increments
 
 1. Add tested runner lifecycle execution to libstall, with explicit policy limitations rather than a fictitious hard spend guarantee.
-2. Implement and test a Pi subprocess adapter against recorded/fake protocol events before making paid model calls. Resolve usage availability and cost representation in libstall first.
+2. Resolve usage availability and cost representation in libstall before enabling budget policy; verify the adapter against a live Pi model only with explicit approval.
 3. Wire the stages in a CLI with explicit target repository, provider/model, and timeout settings.
 4. Add guarded Git publication and tests using temporary local repositories; require explicit opt-in to push.
 
