@@ -13,7 +13,7 @@ import (
 	"time"
 
 	stall "github.com/bboykarlito/libstall"
-	"stall-engineer/internal/harness/pi"
+	pi "github.com/bboykarlito/pi-in-stall"
 	"stall-engineer/internal/workflow"
 )
 

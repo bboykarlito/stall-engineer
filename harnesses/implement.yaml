@@ -1,4 +1,4 @@
-# Pi-specific profile; the future adapter module will be named pi-in-stall.
+# Application-owned Pi profile, loaded by the pi-in-stall adapter.
 harness: pi
 version: 1
 model: gpt-5.6-terra

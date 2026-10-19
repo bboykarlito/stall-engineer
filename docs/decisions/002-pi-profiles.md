@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Profiles are implemented inside stall-engineer; separate module/repository extraction is deferred.
+Accepted. The decision to defer extraction is superseded by [ADR-003](003-extract-pi-adapter.md). The Pi-owned schema and application-owned profile/review policies remain in effect. The original decision below records the pre-extraction design.
 
 ## Context
 

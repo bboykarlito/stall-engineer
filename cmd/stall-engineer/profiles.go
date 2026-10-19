@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"stall-engineer/internal/harness/pi"
+	pi "github.com/bboykarlito/pi-in-stall"
 )
 
 // Loading belongs to the adapter; the read-only review requirement belongs to

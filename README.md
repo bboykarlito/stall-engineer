@@ -54,10 +54,11 @@ Requires Go 1.24.4 or later and sibling checkouts:
 ```text
 Projects/
   libstall/
+  pi-in-stall/
   stall-engineer/
 ```
 
-The local `go.mod` replacement uses `../libstall` while the library is under development. The application module uses the temporary local name `stall-engineer`; no hosted repository or remote has been created.
+Local `go.mod` replacements use `../libstall` and `../pi-in-stall` while these modules are under development. Both replacements are required here because Go does not inherit dependency replacements. Their `v0.0.0` requirements are local placeholders, not published releases. The application module uses the temporary local name `stall-engineer`.
 
 ```sh
 go test -race ./...
@@ -67,7 +68,7 @@ go run ./cmd/stall-engineer -help
 
 ## Pi harness configuration
 
-The future adapter module is named **pi-in-stall**. For now it lives in `internal/harness/pi`; no extraction or plugin registry is introduced. YAML is Pi-specific and belongs to this adapter, not libstall.
+The adapter now lives in the separate **pi-in-stall** module at `github.com/bboykarlito/pi-in-stall` (package `pi`). See its [README](../pi-in-stall/README.md) for the public API and runtime limitations. YAML parsing and Pi RPC tests live there; this application keeps its own profile files, CLI overrides, and read-only review policy. There is no plugin registry. YAML remains Pi-specific, not part of libstall.
 
 Example read-only profile:
 
@@ -92,6 +93,7 @@ Selected skills become repeated `--skill` arguments alongside `--no-skills`, whi
 Programmatic construction separates the reusable profile from the invocation:
 
 ```go
+// import pi "github.com/bboykarlito/pi-in-stall"
 profile, err := pi.LoadProfile("harnesses/implement.yaml")
 // Handle err.
 config, err := profile.Config(absoluteRepoPath)
@@ -119,7 +121,7 @@ The adapter returns the last completed assistant message's text. Provider errors
 
 Token accounting uses session totals: input includes uncached input plus cache-read and cache-write tokens; output is reported separately. Monetary cost is not represented. If execution fails before statistics are retrieved, usage remains zero and must be treated as **unknown, not free**. The current libstall type cannot express availability; this prototype is not suitable for budget enforcement. A successful statistics response also cannot prove that a provider supplied accurate billing data.
 
-Tests exercise RPC acceptance versus completion, Unicode line separators, usage, provider failures, malformed output, premature exit, UI rejection, configuration snapshots, and cancellation through fake child processes. No paid API calls are made.
+Adapter tests in pi-in-stall exercise RPC acceptance versus completion, Unicode line separators, usage, provider failures, malformed output, premature exit, UI rejection, configuration snapshots, and cancellation through fake child processes. Run `go test -race ./...` in that repository separately; Go does not run a dependency's tests as part of this application's tests. No paid API calls are made.
 
 ## Next increments
 
@@ -127,4 +129,4 @@ Tests exercise RPC acceptance versus completion, Unicode line separators, usage,
 2. Add deterministic configured checks and an isolated implementation environment without publication credentials/network access.
 3. Add guarded Git publication and tests using temporary local repositories; require explicit opt-in to push.
 
-See [ADR-001](docs/decisions/001-engineering-workflow.md) for execution/publication boundaries and [ADR-002](docs/decisions/002-pi-profiles.md) for adapter-owned YAML and the pi-in-stall extraction direction.
+See [ADR-001](docs/decisions/001-engineering-workflow.md) for execution/publication boundaries, [ADR-002](docs/decisions/002-pi-profiles.md) for adapter-owned YAML, and [ADR-003](docs/decisions/003-extract-pi-adapter.md) for the completed extraction.
