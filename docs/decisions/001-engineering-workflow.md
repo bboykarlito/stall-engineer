@@ -2,7 +2,7 @@
 
 ## Status
 
-Partially implemented. Behaviour contracts, Pi invocation configuration, and RPC execution are implemented and tested with fake subprocesses. Runner orchestration, budget policy, publication, and live Pi compatibility remain unimplemented or unverified.
+Partially implemented. Behaviour contracts, Pi RPC execution, and a local-only CLI using libstall.Runner are implemented and tested with fake harnesses/processes and temporary repositories. Budget policy, enforced test commands, publication, and live Pi compatibility remain unimplemented or unverified.
 
 ## Context
 
@@ -19,6 +19,14 @@ This project is libstall's first concrete consumer. The desired workflow accepts
 - Disable discovered extensions, skills, prompt templates, and context files for the initial controlled adapter, and reject project-resource trust. Supply necessary repository conventions deliberately. This avoids ambient behaviour, but is not a sandbox.
 - Use only `read,grep,find,ls` for review, with no shell or extension tools. Tool configuration must be enforced by Pi rather than relying on instructions.
 - Treat commit and push as deterministic application operations, not another LLM stage.
+
+## Local CLI increment
+
+The CLI requires an explicit repository and task. Both model stages use the selected provider/model with independent sessions and deadlines. Repository preflight requires a clean worktree and index on a named non-protected branch. Protected branches are main/master/trunk, a caller-configured base branch, and the locally recorded origin default when available; no remote lookup is performed.
+
+Implementation is followed by binary-capable Git diff capture against the original HEAD, including non-ignored untracked files. Submodule repositories are rejected because this first version cannot provide complete nested change evidence. External Git diff/text conversion helpers are disabled. Evidence is capped at 4 MiB and passed explicitly as JSON alongside the task and summary to the read-only reviewer. After approval, the application rechecks HEAD, branch, and the captured working-tree changes.
+
+No test execution is enforced by deterministic application code yet; implementation is prompted to run checks and review is expected to question insufficient evidence. Ignored files and index-only differences with unchanged working-tree contents are outside the captured patch. The snapshot check is not a lock against concurrent writers. The CLI never commits, pushes, resets, or rolls back; failure preserves edits and available stage results for inspection.
 
 ## Publication policy to implement
 
