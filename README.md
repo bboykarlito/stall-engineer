@@ -28,10 +28,14 @@ Options:
 | --- | --- | --- |
 | `-repo` | required | Repository worktree root; relative paths are also accepted. |
 | `-task` | required | Task text. |
-| `-model` | `gpt-5.6-terra` | Model used by both independent sessions. |
-| `-provider` | Pi resolves | Optional explicit provider ID. |
+| `-implement-profile` | `harnesses/implement.yaml` | Pi implementation profile. |
+| `-review-profile` | `harnesses/review.yaml` | Pi review profile; only read-only tools accepted. |
+| `-model` | profile value | Explicit override for both stages (shipped profiles use `gpt-5.6-terra`). |
+| `-provider` | profile value | Explicit override for both stages; `-provider=''` clears it for Pi resolution. |
 | `-timeout` | `10m` | Fresh timeout for each model stage, not the complete workflow. |
 | `-base-branch` | `main` | Additional protected branch; set this to your repository's base branch. |
+
+Run the example from the `stall-engineer` checkout. Profile filenames are relative to the process working directory, **not** `-repo`; when running an installed binary elsewhere, supply explicit profile paths. Both profiles are loaded and validated before either model starts. Missing profiles fail rather than falling back silently. Only explicitly supplied model/provider flags override profile settings.
 
 Preflight rejects dirty/staged/untracked files, detached HEAD, submodule repositories, and protected branches (`main`, `master`, `trunk`, the configured base, and locally known `origin/HEAD`). It does not contact a remote to discover its default branch. Unknown custom defaults must be supplied with `-base-branch`.
 
@@ -63,24 +67,43 @@ go run ./cmd/stall-engineer -help
 
 ## Pi harness configuration
 
-`internal/harness/pi` supplies configuration and a `stall.Harness` implementation:
+The future adapter module is named **pi-in-stall**. For now it lives in `internal/harness/pi`; no extraction or plugin registry is introduced. YAML is Pi-specific and belongs to this adapter, not libstall.
+
+Example read-only profile:
+
+```yaml
+harness: pi
+version: 1
+model: gpt-5.6-terra
+# provider: your-provider-id
+tools:
+  allow: [read, grep, find, ls]
+skills:
+  discover: false
+  paths: []
+```
+
+`harness`, `version`, `model`, and a nonempty `tools.allow` are required. Provider and skills are optional; omitted skills mean no discovery and no selected skills. Loading rejects unknown fields, duplicate keys, multiple YAML documents, unsupported harness/version/tools, duplicate tools, and `skills.discover: true`. There is no credential field, environment interpolation, arbitrary CLI arguments, or runtime working directory in the schema. Profiles are limited to 1 MiB. Provider authentication remains managed by Pi.
+
+Select skills with explicit paths, for example `paths: [../skills/code-review]`. Relative paths resolve against the profile file's directory. A directory selects exactly its `SKILL.md`, not every nested skill. An explicit Markdown file is also accepted; it must be a regular file with YAML frontmatter containing nonempty name and description. Duplicate selected skill names fail rather than letting Pi silently pick one. Each skill file is limited to 1 MiB. These are basic checks, not a complete Agent Skills specification validator.
+
+Selected skills become repeated `--skill` arguments alongside `--no-skills`, which keeps ambient discovery disabled. Skills are available to the model, not guaranteed to be invoked. **Treat profiles and skills as trusted input.** Skills are instructions, not permissions; they may suggest executing bundled scripts, and files are not sandboxed or content-pinned after validation. No shell expansion of `~` or environment variables is performed.
+
+Programmatic construction separates the reusable profile from the invocation:
 
 ```go
-implementation := pi.ImplementationConfig(absoluteRepoPath)
-review := pi.ReviewConfig(absoluteRepoPath)
-
-// Optional overrides; otherwise Pi resolves the model using its configured providers.
-implementation.Provider = "your-provider-id"
-implementation.Model = "gpt-5.6-terra"
-
-harness, err := pi.New(implementation)
-// Handle err. New validates and snapshots configuration, without starting Pi.
+profile, err := pi.LoadProfile("harnesses/implement.yaml")
+// Handle err.
+config, err := profile.Config(absoluteRepoPath)
+// Handle err.
+harness, err := pi.New(config)
+// Handle err. New snapshots configuration without starting Pi.
 // result, err := harness.Execute(ctx, preparedRequest)
 ```
 
-Both configurations default to `gpt-5.6-terra`. Model availability and credentials have not been verified with a live call. Provider is intentionally not guessed.
+Model availability and credentials have not been verified with a live call. Provider is intentionally not guessed.
 
-The generated arguments select RPC mode, disable session persistence and project-resource trust, disable discovery of extensions/skills/templates/context files, and explicitly allowlist tools. Implementation permits `read,grep,find,ls,edit,write,bash`; review permits only `read,grep,find,ls`. Each constructor returns an independent tool slice. Configuration remains mutable, so callers changing the review allowlist are responsible for preserving its read-only policy.
+The generated arguments select RPC mode, disable session persistence and project-resource trust, disable discovery of extensions/skills/templates/context files, and explicitly allowlist tools. Implementation permits `read,grep,find,ls,edit,write,bash`; review permits only `read,grep,find,ls`. Profile-to-config conversion and harness construction copy tool/skill slices. The CLI rejects any review tool outside `read,grep,find,ls` before implementation starts, even when the YAML is edited. This is an application policy; direct adapter consumers must impose their own role restrictions.
 
 `Args` requires an absolute existing working directory, a nonempty model, and a nonempty list of supported built-in tools. It does not verify that the directory is a Git repository. WorkDir is process configuration, not a CLI argument or filesystem sandbox. Shell access in the implementation profile can bypass prompt-only publication restrictions.
 
@@ -104,4 +127,4 @@ Tests exercise RPC acceptance versus completion, Unicode line separators, usage,
 2. Add deterministic configured checks and an isolated implementation environment without publication credentials/network access.
 3. Add guarded Git publication and tests using temporary local repositories; require explicit opt-in to push.
 
-See [ADR-001](docs/decisions/001-engineering-workflow.md) for the proposed execution and publication boundaries.
+See [ADR-001](docs/decisions/001-engineering-workflow.md) for execution/publication boundaries and [ADR-002](docs/decisions/002-pi-profiles.md) for adapter-owned YAML and the pi-in-stall extraction direction.

@@ -31,8 +31,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	repo := flags.String("repo", "", "absolute or relative path to a clean repository root on a feature branch")
 	task := flags.String("task", "", "engineering task")
-	model := flags.String("model", pi.DefaultModel, "Pi model ID for both stages")
-	provider := flags.String("provider", "", "optional Pi provider ID")
+	implementationProfile := flags.String("implement-profile", "harnesses/implement.yaml", "Pi implementation YAML profile (relative to current directory)")
+	reviewProfile := flags.String("review-profile", "harnesses/review.yaml", "Pi review YAML profile (relative to current directory)")
+	model := flags.String("model", "", "override both profile models (shipped profiles: "+pi.DefaultModel+")")
+	provider := flags.String("provider", "", "override both profile providers; explicit empty value uses Pi resolution")
 	base := flags.String("base-branch", "main", "additional protected base branch (main, master, trunk also protected)")
 	timeout := flags.Duration("timeout", 10*time.Minute, "timeout for each model stage")
 	if err := flags.Parse(args); err != nil {
@@ -54,10 +56,19 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	implConfig := pi.ImplementationConfig(absolute)
-	reviewConfig := pi.ReviewConfig(absolute)
-	implConfig.Model, reviewConfig.Model = *model, *model
-	implConfig.Provider, reviewConfig.Provider = *provider, *provider
+	overrides := make(map[string]string)
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == "model" {
+			overrides["model"] = *model
+		}
+		if f.Name == "provider" {
+			overrides["provider"] = *provider
+		}
+	})
+	implConfig, reviewConfig, err := loadConfigs(*implementationProfile, *reviewProfile, absolute, overrides)
+	if err != nil {
+		return err
+	}
 	implementation, err := pi.New(implConfig)
 	if err != nil {
 		return err

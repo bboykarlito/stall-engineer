@@ -1,0 +1,9 @@
+# The application rejects shell/write tools even if added to this profile.
+harness: pi
+version: 1
+model: gpt-5.6-terra
+tools:
+  allow: [read, grep, find, ls]
+skills:
+  discover: false
+  paths: []

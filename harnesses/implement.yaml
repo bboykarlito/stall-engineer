@@ -1,0 +1,9 @@
+# Pi-specific profile; the future adapter module will be named pi-in-stall.
+harness: pi
+version: 1
+model: gpt-5.6-terra
+tools:
+  allow: [read, grep, find, ls, edit, write, bash]
+skills:
+  discover: false
+  paths: []

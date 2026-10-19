@@ -30,6 +30,7 @@ func New(config Config) (*Harness, error) {
 		return nil, err
 	}
 	config.Tools = append([]string(nil), config.Tools...)
+	config.Skills = append([]string(nil), config.Skills...)
 	return &Harness{config: config, command: func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "pi", args...)
 	}}, nil

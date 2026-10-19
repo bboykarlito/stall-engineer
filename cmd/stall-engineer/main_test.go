@@ -35,7 +35,7 @@ func TestReportMarksUsageUncertainty(t *testing.T) {
 	// Invalid repositories fail preflight without invoking Pi, regardless of PATH.
 	t.Setenv("PATH", "")
 	var output bytes.Buffer
-	err := run(context.Background(), []string{"-repo", t.TempDir(), "-task", "fix"}, &output, &output)
+	err := run(context.Background(), []string{"-repo", t.TempDir(), "-task", "fix", "-implement-profile", "../../harnesses/implement.yaml", "-review-profile", "../../harnesses/review.yaml"}, &output, &output)
 	if err == nil || !strings.Contains(err.Error(), "preflight") {
 		t.Fatalf("expected preflight failure, got %v", err)
 	}

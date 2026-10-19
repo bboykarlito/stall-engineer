@@ -22,6 +22,8 @@ type Config struct {
 	Provider string
 	Model    string
 	Tools    []string
+	// Skills lists explicit absolute skill files; ambient discovery stays disabled.
+	Skills []string
 }
 
 // ImplementationConfig permits editing and shell commands. It is not a sandbox:
@@ -59,23 +61,8 @@ func (c Config) Args() ([]string, error) {
 	if !info.IsDir() {
 		return nil, errors.New("pi working directory is not a directory")
 	}
-	if strings.TrimSpace(c.Model) == "" {
-		return nil, errors.New("pi model is required")
-	}
-	if len(c.Tools) == 0 {
-		return nil, errors.New("pi tool allowlist is required")
-	}
-	seen := make(map[string]bool)
-	for _, tool := range c.Tools {
-		switch tool {
-		case "read", "grep", "find", "ls", "edit", "write", "bash":
-		default:
-			return nil, fmt.Errorf("unsupported pi tool %q", tool)
-		}
-		if seen[tool] {
-			return nil, fmt.Errorf("duplicate pi tool %q", tool)
-		}
-		seen[tool] = true
+	if err := c.validateOptions(); err != nil {
+		return nil, err
 	}
 
 	args := []string{
@@ -90,10 +77,36 @@ func (c Config) Args() ([]string, error) {
 		"--tools", strings.Join(c.Tools, ","),
 	}
 	if c.Provider != "" {
-		if strings.TrimSpace(c.Provider) == "" {
-			return nil, errors.New("pi provider must not be whitespace")
-		}
 		args = append(args, "--provider", c.Provider)
 	}
+	for _, skill := range c.Skills {
+		args = append(args, "--skill", skill)
+	}
 	return args, nil
+}
+
+func (c Config) validateOptions() error {
+	if strings.TrimSpace(c.Model) == "" {
+		return errors.New("pi model is required")
+	}
+	if len(c.Tools) == 0 {
+		return errors.New("pi tool allowlist is required")
+	}
+	seen := make(map[string]bool)
+	for _, tool := range c.Tools {
+		switch tool {
+		case "read", "grep", "find", "ls", "edit", "write", "bash":
+		default:
+			return fmt.Errorf("unsupported pi tool %q", tool)
+		}
+		if seen[tool] {
+			return fmt.Errorf("duplicate pi tool %q", tool)
+		}
+		seen[tool] = true
+	}
+
+	if c.Provider != "" && strings.TrimSpace(c.Provider) == "" {
+		return errors.New("pi provider must not be whitespace")
+	}
+	return validateSkills(c.Skills)
 }
